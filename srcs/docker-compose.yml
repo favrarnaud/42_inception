@@ -1,0 +1,69 @@
+version: "3.8"
+
+networks:
+  app-network:
+    name: "app-network"
+    driver: bridge
+
+volumes:
+  db_data:
+    driver: local
+    name: db_data
+    driver_opts:
+      type: none
+      o: bind
+      device: /home/afavre/data/mariadb
+  wp_data:
+    driver: local
+    name: wp_data
+    driver_opts:
+      type: none
+      o: bind
+      device: /home/afavre/data/wordpress
+
+services:
+  mariadb:
+    container_name: mariadb
+    build:
+      context: ./requirements/mariadb
+      args :
+        - WP_DATABASE_NAME=${WP_DATABASE_NAME}
+        - MYSQL_USER=${MYSQL_USER}
+        - MYSQL_PASSWORD=${MYSQL_PASSWORD}
+        - MYSQL_ROOT_PASSWORD=${MYSQL_ROOT_PASSWORD}
+    env_file:
+      - .env
+    volumes:
+      - db_data:/var/lib/mysql
+    networks:
+      - app-network
+    restart: always
+
+  wordpress:
+    container_name: wordpress
+    build: ./requirements/wordpress
+    depends_on:
+      - mariadb
+    env_file:
+      - .env
+    volumes:
+      - wp_data:/var/www/html
+    networks:
+      - app-network
+    restart: always
+
+  nginx:
+    container_name: nginx
+    build: ./requirements/nginx
+    depends_on:
+      - wordpress
+    ports:
+      - "443:443"
+    env_file:
+      - .env
+    volumes:
+      - wp_data:/var/www/html
+    networks:
+      - app-network
+    restart: always
+
